@@ -8,15 +8,17 @@ date_list = ['20200901']
 sn_list = [1, 2, 3,  # 相电压
            4, 5, 6,  # 线电压
            7, 8, 9,  # 相电流
+           11, 12, 13,  # 各相有功功率
            14,  # 总有功功率
            18,  # 总无功功率
+           23, 24, 25,  # 各相功率因数
            26,  # 总功率因数
            28,  # 正有功电能
            30  # 正无功电能
            ]
 columns = ['id', 'type', 'cot', 'reading_time', 'create_time', 'devname', 'iednum', 'sn', 'value', 'qos']
-new_columns = ['index_datetime', '年', '月', '日', '时刻', 'A相电压', 'B相电压', 'C相电压', 'AC线电压', 'BC线电压', 'CA线电压',
-               'A相电流', 'B相电流', 'C相电流', '总有功功率', '总无功功率', '频率', '功率因数', '总正向有功电能']
+new_columns = ['index_datetime', '年', '月', '日', '时刻', '总有功功率', 'A相电压', 'B相电压', 'C相电压', 'AB线电压', 'BC线电压', 'CA线电压',
+               'A相电流', 'B相电流', 'C相电流', 'A相有功功率', 'B相有功功率', 'C相有功功率', 'A相功率因数', 'B相功率因数', 'C相功率因数', '总无功功率', '频率', '功率因数', '总正向有功电能']
 
 interval = 30  # seconds per row
 
@@ -27,9 +29,9 @@ except FileNotFoundError as e:
     print("未记录Entername_Enterid_RealDevname_Devname，运行fetch_manager.py")
     print(e)
 
-integrity = pd.DataFrame(columns=['企业名称', '设备名称', '起始时间', '终止时间', '总数据量', '总采集数据量', 'A相电压', 'B相电压',
-                                  'C相电压', 'AC线电压', 'BC线电压', 'CA线电压', 'A相电流', 'B相电流', 'C相电流', '总有功功率',
-                                  '总无功功率', '频率', '功率因数', '总正向有功电能'])
+integrity = pd.DataFrame(columns=['企业名称', '设备名称', '起始时间', '终止时间', '总数据量', '总采集数据量', '总有功功率', 'A相电压', 'B相电压',
+                                  'C相电压', 'AB线电压', 'BC线电压', 'CA线电压', 'A相电流', 'B相电流', 'C相电流', 'A相有功功率', 'B相有功功率', 'C相有功功率',
+                                  'A相功率因数', 'B相功率因数', 'C相功率因数', '总无功功率', '频率', '功率因数', '总正向有功电能'])
 
 # for i in range(len(a)):
 #
@@ -88,7 +90,10 @@ for i in range(len(a)):
                           len(group.loc[group['sn'] == 7, 'value']) + len(group.loc[group['sn'] == 8, 'value']) + \
                           len(group.loc[group['sn'] == 9, 'value']) + len(group.loc[group['sn'] == 14, 'value']) + \
                           len(group.loc[group['sn'] == 18, 'value']) + len(group.loc[group['sn'] == 27, 'value']) + \
-                          len(group.loc[group['sn'] == 26, 'value']) + len(group.loc[group['sn'] == 28, 'value'])
+                          len(group.loc[group['sn'] == 26, 'value']) + len(group.loc[group['sn'] == 28, 'value']) + \
+                          len(group.loc[group['sn'] == 11, 'value']) + len(group.loc[group['sn'] == 12, 'value']) + \
+                          len(group.loc[group['sn'] == 13, 'value']) + len(group.loc[group['sn'] == 23, 'value']) + \
+                          len(group.loc[group['sn'] == 24, 'value']) + len(group.loc[group['sn'] == 25, 'value'])
             if data_length == 0:
                 continue
             stop = 1
@@ -98,7 +103,7 @@ for i in range(len(a)):
             # data_one['A相电压'] = 'NAN' if len(group.loc[group['sn'] == 1, 'value'])==0 else group.loc[group['sn'] == 1, 'value'].values[0]
             # data_one['B相电压'] = 'NaN' if len(group.loc[group['sn'] == 2, 'value'])==0 else group.loc[group['sn'] == 2, 'value'].values[0]
             # data_one['C相电压'] = 'NaN' if len(group.loc[group['sn'] == 3, 'value'])==0 else group.loc[group['sn'] == 3, 'value'].values[0]
-            # data_one['AC线电压'] = 'NAN' if len(group.loc[group['sn'] == 4, 'value'])==0 else group.loc[group['sn'] == 4, 'value'].values[0]
+            # data_one['AB线电压'] = 'NAN' if len(group.loc[group['sn'] == 4, 'value'])==0 else group.loc[group['sn'] == 4, 'value'].values[0]
             # data_one['BC线电压'] = 'NAN' if len(group.loc[group['sn'] == 5, 'value'])==0 else group.loc[group['sn'] == 5, 'value'].values[0]
             # data_one['CA线电压'] = 'NAN' if len(group.loc[group['sn'] == 6, 'value'])==0 else group.loc[group['sn'] == 6, 'value'].values[0]
             # data_one['A相电流'] = 'NAN' if len(group.loc[group['sn'] == 7, 'value'])==0 else group.loc[group['sn'] == 7, 'value'].values[0]
@@ -116,7 +121,7 @@ for i in range(len(a)):
             if len(group.loc[group['sn'] == 3, 'value']) != 0:
                 data_one['C相电压'] = group.loc[group['sn'] == 3, 'value'].values[0]
             if len(group.loc[group['sn'] == 4, 'value']) != 0:
-                data_one['AC线电压'] = group.loc[group['sn'] == 4, 'value'].values[0]
+                data_one['AB线电压'] = group.loc[group['sn'] == 4, 'value'].values[0]
             if len(group.loc[group['sn'] == 5, 'value']) != 0:
                 data_one['BC线电压'] = group.loc[group['sn'] == 5, 'value'].values[0]
             if len(group.loc[group['sn'] == 6, 'value']) != 0:
@@ -137,6 +142,18 @@ for i in range(len(a)):
                 data_one['功率因数'] = group.loc[group['sn'] == 26, 'value'].values[0]
             if len(group.loc[group['sn'] == 28, 'value']) != 0:
                 data_one['总正向有功电能'] = group.loc[group['sn'] == 28, 'value'].values[0]
+            if len(group.loc[group['sn'] == 11, 'value']) != 0:
+                data_one['A相有功功率'] = group.loc[group['sn'] == 11, 'value'].values[0]
+            if len(group.loc[group['sn'] == 12, 'value']) != 0:
+                data_one['B相有功功率'] = group.loc[group['sn'] == 12, 'value'].values[0]
+            if len(group.loc[group['sn'] == 13, 'value']) != 0:
+                data_one['C相有功功率'] = group.loc[group['sn'] == 13, 'value'].values[0]
+            if len(group.loc[group['sn'] == 23, 'value']) != 0:
+                data_one['A相功率因数'] = group.loc[group['sn'] == 23, 'value'].values[0]
+            if len(group.loc[group['sn'] == 24, 'value']) != 0:
+                data_one['B相功率因数'] = group.loc[group['sn'] == 24, 'value'].values[0]
+            if len(group.loc[group['sn'] == 25, 'value']) != 0:
+                data_one['C相功率因数'] = group.loc[group['sn'] == 25, 'value'].values[0]
 
             data_output_by_dev = data_output_by_dev.append([data_one], ignore_index=True)
 
@@ -146,8 +163,6 @@ for i in range(len(a)):
 
         data_output_by_dev = data_output_by_dev.sort_values(by='index_datetime')  # earlier to later
         data_counts = data_output_by_dev.shape[0]
-        if data_counts == 0:
-            print(data_output_by_dev)
         data_total = (data_output_by_dev['index_datetime'][data_counts - 1] - data_output_by_dev['index_datetime'][
             0]).total_seconds() / interval
 
@@ -156,12 +171,18 @@ for i in range(len(a)):
                  'A相电压': (data_counts - data_output_by_dev['A相电压'].isna().sum()) / math.floor(data_total),
                  'B相电压': (data_counts - data_output_by_dev['B相电压'].isna().sum()) / math.floor(data_total),
                  'C相电压': (data_counts - data_output_by_dev['C相电压'].isna().sum()) / math.floor(data_total),
-                 'AC线电压': (data_counts - data_output_by_dev['AC线电压'].isna().sum()) / math.floor(data_total),
+                 'AB线电压': (data_counts - data_output_by_dev['AB线电压'].isna().sum()) / math.floor(data_total),
                  'BC线电压': (data_counts - data_output_by_dev['BC线电压'].isna().sum()) / math.floor(data_total),
                  'CA线电压': (data_counts - data_output_by_dev['CA线电压'].isna().sum()) / math.floor(data_total),
                  'A相电流': (data_counts - data_output_by_dev['A相电流'].isna().sum()) / math.floor(data_total),
                  'B相电流': (data_counts - data_output_by_dev['B相电流'].isna().sum()) / math.floor(data_total),
                  'C相电流': (data_counts - data_output_by_dev['C相电流'].isna().sum()) / math.floor(data_total),
+                 'A相有功功率': (data_counts - data_output_by_dev['A相有功功率'].isna().sum()) / math.floor(data_total),
+                 'B相有功功率': (data_counts - data_output_by_dev['B相有功功率'].isna().sum()) / math.floor(data_total),
+                 'C相有功功率': (data_counts - data_output_by_dev['C相有功功率'].isna().sum()) / math.floor(data_total),
+                 'A相功率因数': (data_counts - data_output_by_dev['A相功率因数'].isna().sum()) / math.floor(data_total),
+                 'B相功率因数': (data_counts - data_output_by_dev['B相功率因数'].isna().sum()) / math.floor(data_total),
+                 'C相功率因数': (data_counts - data_output_by_dev['C相功率因数'].isna().sum()) / math.floor(data_total),
                  '总有功功率': (data_counts - data_output_by_dev['总有功功率'].isna().sum()) / math.floor(data_total),
                  '总无功功率': (data_counts - data_output_by_dev['总无功功率'].isna().sum()) / math.floor(data_total),
                  '频率': (data_counts - data_output_by_dev['频率'].isna().sum()) / math.floor(data_total),
@@ -198,6 +219,6 @@ for i in range(len(a)):
     print("*****")
 
 integrity.to_excel("./data_by_enterprise/integrity.xlsx",
-                   header=['企业名称', '设备名称', '起始时间', '终止时间', '总数据量', '总采集数据量', 'A相电压', 'B相电压',
-                           'C相电压', 'AC线电压', 'BC线电压', 'CA线电压', 'A相电流', 'B相电流', 'C相电流', '总有功功率',
-                           '总无功功率', '频率', '功率因数', '总正向有功电能'])
+                   header=['企业名称', '设备名称', '起始时间', '终止时间', '总数据量', '总采集数据量', '总有功功率', 'A相电压', 'B相电压',
+                                  'C相电压', 'AB线电压', 'BC线电压', 'CA线电压', 'A相电流', 'B相电流', 'C相电流', 'A相有功功率', 'B相有功功率', 'C相有功功率',
+                                  'A相功率因数', 'B相功率因数', 'C相功率因数', '总无功功率', '频率', '功率因数', '总正向有功电能'])

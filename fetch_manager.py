@@ -11,7 +11,7 @@ db = pymysql.connect(
 
 cursor = db.cursor()
 
-manager = "SELECT * FROM dsm_manager"
+manager = "SELECT * FROM dsm_device"
 
 cursor.execute(manager)
 
@@ -26,7 +26,7 @@ with open("manager.pickle", 'wb') as f:
     pickle.dump(manager_list, f)
 
 with open("RealDevname_Devname_Enterid.pickle", 'wb') as f:
-    pickle.dump(manager_list[:, [2, 7, 3]], f)
+    pickle.dump(manager_list[:, [2, 10, 3]], f)
 
 try:
     with open("Name_Enterid.pickle", 'rb') as f:
@@ -39,12 +39,13 @@ Entername_Enterid_RealDevname_Devname_list = []
 
 for i in range(manager_list.shape[0]):
     RealDevname = manager_list[i, 2]
-    Devname = manager_list[i, 7]
+    Devname = manager_list[i, 10]
     Enterid = manager_list[i, 3]
+    Iednum = manager_list[i, 11]
     Entername = name_enterid[np.where(name_enterid[:, 1] == Enterid), 0]
-    if os.path.exists("./data_by_enterprise/" + Entername[0][0] + "/" + RealDevname) is not True:
-        os.mkdir("./data_by_enterprise/" + Entername[0][0] + "/" + RealDevname)
-    Entername_Enterid_RealDevname_Devname_list.append([Entername[0][0], Enterid, RealDevname, Devname])
+    # if os.path.exists("./data_by_enterprise/" + Entername[0][0] + "/" + RealDevname) is not True:
+    #     os.mkdir("./data_by_enterprise/" + Entername[0][0] + "/" + RealDevname)
+    Entername_Enterid_RealDevname_Devname_list.append([Entername[0][0], Enterid, RealDevname, Devname, Iednum])
 
 final_list = np.array(Entername_Enterid_RealDevname_Devname_list)
 

@@ -23,10 +23,13 @@ columns = ['id', 'type', 'cot', 'reading_time', 'create_time', 'devname', 'iednu
 new_columns = ['index_datetime', '年', '月', '日', '时刻', '总有功功率', 'A相电压', 'B相电压', 'C相电压', 'AB线电压', 'BC线电压', 'CA线电压',
                'A相电流', 'B相电流', 'C相电流', 'A相有功功率', 'B相有功功率', 'C相有功功率', 'A相功率因数', 'B相功率因数', 'C相功率因数', '总无功功率', '频率', '功率因数', '总正向有功电能']
 
-interval = 30  # seconds per row
+interval = 300  # seconds per row
 
-def grab_data_one(name_group):
+def grab_data_one(name_group, last_time=None):
     name = name_group[0]
+    if last_time is not None:
+        if (name - last_time).total_seconds() < 300:
+            return 0, None, last_time
     group = name_group[1]
     data_exist = False
     for sn in sn_list:
@@ -34,7 +37,7 @@ def grab_data_one(name_group):
         if data_exist:
             break
     if data_exist is False:
-        return 0, None
+        return 0, None, name
 
     data_one = {'index_datetime': name, '年': name.year, '月': name.month, '日': name.day,
                 '时刻': name.strftime('%H:%M:%S')}
@@ -119,7 +122,7 @@ def grab_data_one(name_group):
     except IndexError:
         pass
 
-    return 1, data_one
+    return 1, data_one, name
 
 try:
     with open("Entername_Enterid_RealDevname_Devname.pickle", 'rb') as f:
@@ -132,95 +135,109 @@ integrity = pd.DataFrame(columns=['企业名称', '设备名称', '起始时间'
                                   'C相电压', 'AB线电压', 'BC线电压', 'CA线电压', 'A相电流', 'B相电流', 'C相电流', 'A相有功功率', 'B相有功功率', 'C相有功功率',
                                   'A相功率因数', 'B相功率因数', 'C相功率因数', '总无功功率', '频率', '功率因数', '总正向有功电能'])
 
-# iter by dev, considering the unaffordable cost of memory
-for i in range(len(a)):
-    Entername = a[i, 0]
-    Enterid = a[i, 1]
-    RealDevname = a[i, 2]
-    Devname = a[i, 3]
-    Iednum = a[i, 4]
-    data_output_by_dev = pd.DataFrame(columns=new_columns)
-    stop = 0
-
-    for d in date_list:
-        with open("./data_by_date/" + d + ".pickle", 'rb') as f:
-            data = pickle.load(f)
-            data = pd.DataFrame(data, columns=columns)
-        data_dev = data.groupby(['devname', 'iednum'])
+if __name__ == '__main__':
+    # iter by dev, considering the unaffordable cost of memory
+    for i in range(len(a)):
+        Entername = a[i, 0]
+        Enterid = a[i, 1]
+        RealDevname = a[i, 2]
+        Devname = a[i, 3]
+        Iednum = a[i, 4]
+        data_output_by_dev = pd.DataFrame(columns=new_columns)
         stop = 0
 
-        try:
-            data_selected_by_dev = data_dev.get_group((Devname, int(Iednum)))
-        except KeyError as e:
-            continue
+        for d in date_list:
 
-        data_selected_by_dev_by_time = data_selected_by_dev.groupby('reading_time')
+            time1 = time.time()
+            with open("./data_by_date/" + d + ".pickle", 'rb') as f:
+                data = pickle.load(f)
+                data = pd.DataFrame(data, columns=columns)
+            data_dev = data.groupby(['devname', 'iednum'])
+            stop = 0
 
-        '''pool = ThreadPoolExecutor()
-        threads = []
-        for name_group in data_selected_by_dev_by_time:
-            threads.append(pool.submit(grab_data_one, name_group))
-        for t in threads:
-            stop_result, data_one = t.result()
-            if stop_result == 1:
-                stop = 1
-                if data_one is not None:
-                    data_output_by_dev = data_output_by_dev.append([data_one], ignore_index=True)
-        pool.shutdown()'''
+            try:
+                data_selected_by_dev = data_dev.get_group((Devname, int(Iednum)))
+            except KeyError as e:
+                continue
 
-        with ThreadPoolExecutor(max_workers=50) as executor:
-            results = executor.map(grab_data_one, (data_selected_by_dev_by_time))
+            data_selected_by_dev_by_time = data_selected_by_dev.groupby('reading_time')
 
-            for stop_result, data_one in results:
+            time2 = time.time()
+            print(time2-time1)
+            last_time = None
+            for name_group in data_selected_by_dev_by_time:
+                stop_result, data_one, last_time = grab_data_one(name_group, last_time)
                 if stop_result == 1:
                     stop = 1
                     if data_one is not None:
                         data_output_by_dev = data_output_by_dev.append([data_one], ignore_index=True)
+            print(time.time()-time2)
 
-    if stop == 1:
-        print(Entername)
-        print(RealDevname)
+            '''pool = ThreadPoolExecutor(max_workers=2)
+            threads = []
+            for name_group in data_selected_by_dev_by_time:
+                threads.append(pool.submit(grab_data_one, name_group))
+            for t in threads:
+                stop_result, data_one = t.result()
+                if stop_result == 1:
+                    stop = 1
+                    if data_one is not None:
+                        data_output_by_dev = data_output_by_dev.append([data_one], ignore_index=True)
+            pool.shutdown()'''
 
-        data_output_by_dev = data_output_by_dev.sort_values(by='index_datetime')  # earlier to later
-        data_counts = data_output_by_dev.shape[0]
-        data_total = math.floor((data_output_by_dev['index_datetime'][data_counts - 1] - data_output_by_dev['index_datetime'][
-            0]).total_seconds() / interval)
+            '''with ProcessPoolExecutor(max_workers=2) as executor:
+                results = executor.map(grab_data_one, (data_selected_by_dev_by_time))
+    
+                for stop_result, data_one in results:
+                    if stop_result == 1:
+                        stop = 1
+                        if data_one is not None:
+                            data_output_by_dev = data_output_by_dev.append([data_one], ignore_index=True)'''
 
-        data_notna = (data_counts - data_output_by_dev.isna().sum()) / data_total
+        if stop == 1:
+            print(Entername)
+            print(RealDevname)
 
-        integ = {'企业名称': Entername, '设备名称': RealDevname, '起始时间': data_output_by_dev['index_datetime'][0],
-                 '终止时间': data_output_by_dev['index_datetime'][data_counts - 1], '总数据量': data_total, '总采集数据量': data_counts,
-                 'A相电压': data_notna['A相电压'],
-                 'B相电压': data_notna['B相电压'],
-                 'C相电压': data_notna['C相电压'],
-                 'AB线电压': data_notna['AB线电压'],
-                 'BC线电压': data_notna['BC线电压'],
-                 'CA线电压': data_notna['CA线电压'],
-                 'A相电流': data_notna['A相电流'],
-                 'B相电流': data_notna['B相电流'],
-                 'C相电流': data_notna['C相电流'],
-                 'A相有功功率': data_notna['A相有功功率'],
-                 'B相有功功率': data_notna['B相有功功率'],
-                 'C相有功功率': data_notna['C相有功功率'],
-                 'A相功率因数': data_notna['A相功率因数'],
-                 'B相功率因数': data_notna['B相功率因数'],
-                 'C相功率因数': data_notna['C相功率因数'],
-                 '总有功功率': data_notna['总有功功率'],
-                 '总无功功率': data_notna['总无功功率'],
-                 '频率': data_notna['频率'],
-                 '功率因数': data_notna['功率因数'],
-                 '总正向有功电能': data_notna['总正向有功电能']}
+            data_output_by_dev = data_output_by_dev.sort_values(by='index_datetime')  # earlier to later
+            data_counts = data_output_by_dev.shape[0]
+            data_total = math.floor((data_output_by_dev['index_datetime'][data_counts - 1] - data_output_by_dev['index_datetime'][
+                0]).total_seconds() / interval)
 
-        integrity = integrity.append([integ], ignore_index=True)
-        data_output_by_dev.to_excel("./data_by_enterprise/" + Entername + "/" + RealDevname + ".xlsx", header=new_columns)
-        print("*****")
-        if i+1 >= 10:
-            break
+            data_notna = (data_counts - data_output_by_dev.isna().sum()) / data_total
 
-integrity.to_excel("./data_by_enterprise/integrity.xlsx",
-                   header=['企业名称', '设备名称', '起始时间', '终止时间', '总数据量', '总采集数据量', '总有功功率', 'A相电压', 'B相电压',
-                                  'C相电压', 'AB线电压', 'BC线电压', 'CA线电压', 'A相电流', 'B相电流', 'C相电流', 'A相有功功率', 'B相有功功率', 'C相有功功率',
-                                  'A相功率因数', 'B相功率因数', 'C相功率因数', '总无功功率', '频率', '功率因数', '总正向有功电能'])
-end_time = time.asctime(time.localtime(time.time()))
-print(start_time)
-print(end_time)
+            integ = {'企业名称': Entername, '设备名称': RealDevname, '起始时间': data_output_by_dev['index_datetime'][0],
+                     '终止时间': data_output_by_dev['index_datetime'][data_counts - 1], '总数据量': data_total, '总采集数据量': data_counts,
+                     'A相电压': data_notna['A相电压'],
+                     'B相电压': data_notna['B相电压'],
+                     'C相电压': data_notna['C相电压'],
+                     'AB线电压': data_notna['AB线电压'],
+                     'BC线电压': data_notna['BC线电压'],
+                     'CA线电压': data_notna['CA线电压'],
+                     'A相电流': data_notna['A相电流'],
+                     'B相电流': data_notna['B相电流'],
+                     'C相电流': data_notna['C相电流'],
+                     'A相有功功率': data_notna['A相有功功率'],
+                     'B相有功功率': data_notna['B相有功功率'],
+                     'C相有功功率': data_notna['C相有功功率'],
+                     'A相功率因数': data_notna['A相功率因数'],
+                     'B相功率因数': data_notna['B相功率因数'],
+                     'C相功率因数': data_notna['C相功率因数'],
+                     '总有功功率': data_notna['总有功功率'],
+                     '总无功功率': data_notna['总无功功率'],
+                     '频率': data_notna['频率'],
+                     '功率因数': data_notna['功率因数'],
+                     '总正向有功电能': data_notna['总正向有功电能']}
+
+            integrity = integrity.append([integ], ignore_index=True)
+            data_output_by_dev.to_excel("./data_by_enterprise/" + Entername + "/" + RealDevname + ".xlsx", header=new_columns)
+            print("*****")
+            if i+1 >= 10:
+                break
+
+    integrity.to_excel("./data_by_enterprise/integrity.xlsx",
+                       header=['企业名称', '设备名称', '起始时间', '终止时间', '总数据量', '总采集数据量', '总有功功率', 'A相电压', 'B相电压',
+                                      'C相电压', 'AB线电压', 'BC线电压', 'CA线电压', 'A相电流', 'B相电流', 'C相电流', 'A相有功功率', 'B相有功功率', 'C相有功功率',
+                                      'A相功率因数', 'B相功率因数', 'C相功率因数', '总无功功率', '频率', '功率因数', '总正向有功电能'])
+    end_time = time.asctime(time.localtime(time.time()))
+    print(start_time)
+    print(end_time)

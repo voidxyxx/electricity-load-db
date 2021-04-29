@@ -17,11 +17,11 @@ def eta12(measurement, calculation):
 
 
 def eta1(df):
-    return abs((abs(df['总有功功率']) / (((df['A相电压'] * df['A相电流']) + (df['B相电压'] * df['B相电流']) + (df['C相电压'] * df['C相电流'])) * abs(df['功率因数']) + epsilon)) - 1.0)
+    return abs((abs(df['总有功功率'] * 1000) / (((df['A相电压'] * df['A相电流']) + (df['B相电压'] * df['B相电流']) + (df['C相电压'] * df['C相电流'])) * abs(df['功率因数']) + epsilon)) - 1.0)
 
 
 def eta2(df):
-    return abs(((9 * abs(df['总有功功率'])) / abs(sqrt3 * (df['AB线电压'] + df['BC线电压'] + df['CA线电压']) * (df['A相电流'] + df['B相电流'] + df['C相电流']) * abs(df['功率因数']) + epsilon)) - 1)
+    return abs(((9 * abs(df['总有功功率'] * 1000)) / abs(sqrt3 * (df['AB线电压'] + df['BC线电压'] + df['CA线电压']) * (df['A相电流'] + df['B相电流'] + df['C相电流']) * abs(df['功率因数']) + epsilon)) - 1)
 
 
 def etava(df):
@@ -54,6 +54,10 @@ try:
 except FileNotFoundError as e:
     print("未记录Entername_Enterid_RealDevname_Devname，运行fetch_manager.py")
     print(e)
+
+accuracy_column = ['企业名称', '设备名称', '数据准确性']
+accuracy = pd.DataFrame(columns=accuracy_column)
+
 for i in range(len(a)):
     Entername = a[i, 0]
     Enterid = a[i, 1]
@@ -63,7 +67,7 @@ for i in range(len(a)):
     try:
         df = pd.read_excel("./data_by_enterprise/" + Entername + "/" + RealDevname + ".xlsx", names=new_columns[:-1])
         df = df.drop(columns=['index'])
-        df['可用性'] = ''
+        df['可用性'] = 1
     except Exception as e:
         print(e)
         continue
@@ -82,22 +86,29 @@ for i in range(len(a)):
             if dfna.iloc[j]['AB线电压'] or dfna.iloc[j]['BC线电压'] or dfna.iloc[j]['CA线电压']:
                 df['可用性'].iloc[j] = 0
                 continue
-            if (etauab(df.iloc[j]) > 0.15) or (etaubc(df.iloc[j]) > 0.15) or (etauca(df.iloc[j]) > 0.15) or (eta2(df.iloc[j]) > 0.15):
+            if (etauab(df.iloc[j]) > 0.15) or (etaubc(df.iloc[j]) > 0.15) or (etauca(df.iloc[j]) > 0.15):
                 df['可用性'].iloc[j] = 0
                 continue
-        # if (etava(df.iloc[j]) > 0.15) or (etavb(df.iloc[j]) > 0.15) or (etavc(df.iloc[j]) > 0.15):
-        #     df['可用性'].iloc[j] = 0
-        #     continue
-        if (eta1(df.iloc[j]) > 0.15):
+            if eta2(df.iloc[j]) > 0.15:
+                df['可用性'].iloc[j] = 0
+                continue
+        if (etava(df.iloc[j]) > 0.15) or (etavb(df.iloc[j]) > 0.15) or (etavc(df.iloc[j]) > 0.15):
+            df['可用性'].iloc[j] = 0
+            continue
+        if eta1(df.iloc[j]) > 0.15:
             df['可用性'].iloc[j] = 0
             continue
         df['可用性'].iloc[j] = 1
-    df.to_excel("./data_by_enterprise/" + Entername + "/" + RealDevname + "accuracy.xlsx", header=new_columns[1:])
 
-    if sum(df['可用性']):
-        print(Entername)
-        print(RealDevname)
-        break
+    acc = {
+        '企业名称': Entername,
+        '设备名称': RealDevname,
+        '数据准确性': sum(df['可用性']) / len(df)
+    }
+
+    accuracy = accuracy.append(acc, ignore_index=True)
+
+    accuracy.to_excel('accuracy.xlsx', header=accuracy_column)
 
 
 
